@@ -23,7 +23,7 @@ console.log('Environment:', process.env.NODE_ENV);
 
 try {
   const root = ReactDOM.createRoot(document.getElementById('root'));
-  const { Sider, Content, Header } = Layout;
+  const { Content, Header } = Layout;
   
   root.render(
     <ThemeProvider>
