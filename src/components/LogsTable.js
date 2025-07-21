@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs } from '@douyinfe/semi-ui';
-import { IconSearch, IconCopy, IconDownload } from '@douyinfe/semi-icons';
+import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs, Form } from '@douyinfe/semi-ui';
+import { IconSearch, IconCopy, IconDownload, IconSetting } from '@douyinfe/semi-icons';
 import { API, timestamp2string, copy } from '../helpers';
 import { stringToColor } from '../helpers/render';
 import { ITEMS_PER_PAGE } from '../constants';
@@ -37,6 +37,10 @@ function renderUseTime(type) {
 }
 
 const LogsTable = () => {
+    // 添加错误边界状态
+    const [hasError, setHasError] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [isInitializing, setIsInitializing] = useState(true);
     const [apikey, setAPIKey] = useState('');
     const [activeTabKey, setActiveTabKey] = useState('');
     const [tabData, setTabData] = useState({});
@@ -44,18 +48,115 @@ const LogsTable = () => {
     const [activeKeys, setActiveKeys] = useState([]);
     const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
     const [baseUrl, setBaseUrl] = useState('');
-    const baseUrls = JSON.parse(process.env.REACT_APP_BASE_URL);  // 解析环境变量
+    const [customBaseUrl, setCustomBaseUrl] = useState('');
+    const [showCustomInput, setShowCustomInput] = useState(false);
+    
+    // 安全的环境变量初始化
+    const getInitialBaseUrls = () => {
+        // 提供一个安全的默认值
+        const defaultUrls = { 'NewAPI示例': 'https://your-newapi-domain.com' };
+        
+        try {
+            const envUrl = process.env.REACT_APP_BASE_URL;
+            if (!envUrl || !envUrl.trim()) {
+                return defaultUrls;
+            }
+            
+            const trimmedUrl = envUrl.trim();
+            
+            // 检查是否是JSON格式
+            if (trimmedUrl.startsWith('{') && trimmedUrl.endsWith('}')) {
+                try {
+                    const parsed = JSON.parse(trimmedUrl);
+                    // 验证解析结果是否有效
+                    if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                        return parsed;
+                    }
+                } catch (jsonError) {
+                    // JSON解析失败，继续尝试简单URL
+                }
+            }
+            
+            // 尝试作为简单URL处理
+            if (trimmedUrl.startsWith('http')) {
+                return { 'NewAPI': trimmedUrl };
+            }
+            
+            return defaultUrls;
+        } catch (error) {
+            // 任何错误都返回默认值
+            return defaultUrls;
+        }
+    };
+    
+    const [baseUrls, setBaseUrls] = useState(() => getInitialBaseUrls());
 
     useEffect(() => {
-        // 默认设置第一个地址为baseUrl
-        const firstKey = Object.keys(baseUrls)[0];
-        setActiveTabKey(firstKey);
-        setBaseUrl(baseUrls[firstKey]);
-    }, []);
+        try {
+            // 默认设置第一个地址为baseUrl
+            const keys = Object.keys(baseUrls);
+            if (keys.length > 0) {
+                const firstKey = keys[0];
+                setActiveTabKey(firstKey);
+                setBaseUrl(baseUrls[firstKey]);
+            }
+            setIsInitializing(false);
+        } catch (error) {
+            console.error('Error in useEffect:', error);
+            setHasError(true);
+            setErrorMessage('初始化组件时发生错误：' + error.message);
+            setIsInitializing(false);
+        }
+    }, [baseUrls]);
 
     const handleTabChange = (key) => {
         setActiveTabKey(key);
         setBaseUrl(baseUrls[key]);
+    };
+
+    const addCustomBaseUrl = () => {
+        if (!customBaseUrl.trim()) {
+            Toast.warning('请输入有效的BASE_URL');
+            return;
+        }
+        
+        // 验证URL格式
+        try {
+            new URL(customBaseUrl);
+        } catch (e) {
+            Toast.error('请输入有效的URL格式');
+            return;
+        }
+        
+        const newKey = `Custom_${Date.now()}`;
+        const newBaseUrls = {
+            ...baseUrls,
+            [newKey]: customBaseUrl.trim()
+        };
+        
+        setBaseUrls(newBaseUrls);
+        setActiveTabKey(newKey);
+        setBaseUrl(customBaseUrl.trim());
+        setCustomBaseUrl('');
+        setShowCustomInput(false);
+        Toast.success('自定义BASE_URL添加成功！');
+    };
+
+    const removeCustomUrl = (key) => {
+        const newBaseUrls = { ...baseUrls };
+        delete newBaseUrls[key];
+        setBaseUrls(newBaseUrls);
+        
+        // 如果删除的是当前激活的tab，切换到第一个
+        if (key === activeTabKey) {
+            const remainingKeys = Object.keys(newBaseUrls);
+            if (remainingKeys.length > 0) {
+                const firstKey = remainingKeys[0];
+                setActiveTabKey(firstKey);
+                setBaseUrl(newBaseUrls[firstKey]);
+            }
+        }
+        Toast.success('已删除自定义URL');
     };
 
     const resetData = (key) => {
@@ -105,7 +206,7 @@ const LogsTable = () => {
                 newTabData.usage = data.total_usage / 100;
             }
         } catch (e) {
-            console.log(e)
+            console.error('Balance fetch error:', e)
             Toast.error("令牌已用尽");
             resetData(activeTabKey); // 如果发生错误，重置所有数据为默认值
             setLoading(false);
@@ -382,6 +483,40 @@ const LogsTable = () => {
     const renderContent = () => (
         <>
             <Card style={{ marginTop: 24 }}>
+                <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <Text strong>当前API地址：</Text>
+                        <Tag color="blue">{baseUrl}</Tag>
+                        <Button 
+                            icon={<IconSetting />} 
+                            theme="borderless" 
+                            onClick={() => setShowCustomInput(!showCustomInput)}
+                        >
+                            自定义
+                        </Button>
+                    </div>
+                    
+                    {showCustomInput && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <Input
+                                placeholder="输入自定义BASE_URL，例如：https://api.example.com"
+                                value={customBaseUrl}
+                                onChange={setCustomBaseUrl}
+                                style={{ flex: 1 }}
+                            />
+                            <Button type="primary" onClick={addCustomBaseUrl}>
+                                添加
+                            </Button>
+                            <Button onClick={() => {
+                                setShowCustomInput(false);
+                                setCustomBaseUrl('');
+                            }}>
+                                取消
+                            </Button>
+                        </div>
+                    )}
+                </div>
+                
                 <Input
                     showClear
                     value={apikey}
@@ -476,21 +611,96 @@ const LogsTable = () => {
         </>
     );
 
-    return (
-        <>
-            {Object.keys(baseUrls).length > 1 ? (
-                <Tabs type="line" onChange={handleTabChange}>
-                    {Object.entries(baseUrls).map(([key, url]) => (
-                        <TabPane tab={key} itemKey={key} key={key}>
-                            {renderContent()}
-                        </TabPane>
-                    ))}
-                </Tabs>
-            ) : (
-                renderContent()
-            )}
-        </>
-    );
+    // 初始化加载状态
+    if (isInitializing) {
+        return (
+            <Card style={{ marginTop: 24 }}>
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <Spin size="large" />
+                    <div style={{ marginTop: 16 }}>
+                        <Text type="secondary">正在初始化应用...</Text>
+                    </div>
+                </div>
+            </Card>
+        );
+    }
+
+    // 错误边界渲染
+    if (hasError) {
+        return (
+            <Card style={{ marginTop: 24 }}>
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <Text type="danger" style={{ fontSize: '18px', marginBottom: '16px', display: 'block' }}>
+                        应用程序遇到错误
+                    </Text>
+                    <Text type="secondary" style={{ marginBottom: '16px', display: 'block' }}>
+                        {errorMessage}
+                    </Text>
+                    <Button 
+                        type="primary"
+                        onClick={() => {
+                            setHasError(false);
+                            setErrorMessage('');
+                            setIsInitializing(true);
+                            window.location.reload();
+                        }}
+                    >
+                        重新加载页面
+                    </Button>
+                </div>
+            </Card>
+        );
+    }
+
+    try {
+        return (
+            <>
+                {Object.keys(baseUrls).length > 1 ? (
+                    <Tabs type="line" onChange={handleTabChange} activeKey={activeTabKey}>
+                        {Object.entries(baseUrls).map(([key, url]) => {
+                            const isCustom = key.startsWith('Custom_');
+                            const tabTitle = (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <span>{isCustom ? '自定义' : key}</span>
+                                    {isCustom && (
+                                        <Button 
+                                            type="danger" 
+                                            theme="borderless" 
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeCustomUrl(key);
+                                            }}
+                                            style={{ fontSize: '12px', padding: '2px 4px' }}
+                                        >
+                                            ×
+                                        </Button>
+                                    )}
+                                </div>
+                            );
+                            
+                            return (
+                                <TabPane tab={tabTitle} itemKey={key} key={key}>
+                                    {renderContent()}
+                                </TabPane>
+                            );
+                        })}
+                    </Tabs>
+                ) : (
+                    renderContent()
+                )}
+            </>
+        );
+    } catch (error) {
+        console.error('Render error:', error);
+        return (
+            <Card style={{ marginTop: 24 }}>
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <Text type="danger">渲染时发生错误：{error.message}</Text>
+                </div>
+            </Card>
+        );
+    }
 };
 
 export default LogsTable;

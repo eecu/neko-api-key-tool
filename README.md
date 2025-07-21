@@ -36,6 +36,7 @@ REACT_APP_SHOW_BALANCE=true
 REACT_APP_SHOW_DETAIL=true
 
 # NewAPI的BaseURL（支持多个NewAPI站点聚合查询，键值对中的键为站点名称，值为站点的URL）
+# 也可以是简单的URL字符串，如：REACT_APP_BASE_URL=https://your-newapi-domain.com
 REACT_APP_BASE_URL={"server1": "https://nekoapi.com", "server2": "https://gf.nekoapi.com"}
 
 # 展示GitHub图标
@@ -44,6 +45,12 @@ REACT_APP_SHOW_ICONGITHUB=true
 
 3. 部署完毕后，即可开始使用；
 4. （可选）[绑定自定义域名](https://vercel.com/docs/concepts/projects/domains/add-a-domain)：Vercel 分配的域名 DNS 在某些区域被污染了，绑定自定义域名即可直连。
+
+### 新功能特性
+- **页面内自定义BASE_URL**：支持在页面中动态添加和管理NewAPI服务器地址，无需重新部署
+- **多服务器支持**：可以添加多个NewAPI服务器，通过标签页切换查询不同服务器
+- **增强的错误处理**：更好的错误边界处理，防止页面白屏
+- **兼容最新NewAPI**：适配了NewAPI最新版本的API接口
 
 #### Docker 部署
 1. 克隆项目到本地:
