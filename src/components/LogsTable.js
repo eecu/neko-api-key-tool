@@ -114,29 +114,51 @@ const LogsTable = () => {
         setBaseUrl(baseUrls[key]);
     };
 
-    const addCustomBaseUrl = () => {
+    const testConnection = async (testUrl) => {
+        console.log('测试连接:', testUrl);
+        try {
+            // 简单测试连接
+            const response = await fetch(testUrl, {
+                method: 'GET',
+                mode: 'cors',
+            });
+            console.log('连接测试结果:', response.status);
+            return response.ok;
+        } catch (error) {
+            console.error('连接测试失败:', error);
+            return false;
+        }
+    };
+
+    const addCustomBaseUrl = async () => {
         if (!customBaseUrl.trim()) {
             Toast.warning('请输入有效的BASE_URL');
             return;
         }
         
         // 验证URL格式
+        let testUrl = customBaseUrl.trim();
         try {
-            new URL(customBaseUrl);
+            new URL(testUrl);
         } catch (e) {
             Toast.error('请输入有效的URL格式');
             return;
         }
         
+        // 移除末尾的斜杠
+        if (testUrl.endsWith('/')) {
+            testUrl = testUrl.slice(0, -1);
+        }
+        
         const newKey = `Custom_${Date.now()}`;
         const newBaseUrls = {
             ...baseUrls,
-            [newKey]: customBaseUrl.trim()
+            [newKey]: testUrl
         };
         
         setBaseUrls(newBaseUrls);
         setActiveTabKey(newKey);
-        setBaseUrl(customBaseUrl.trim());
+        setBaseUrl(testUrl);
         setCustomBaseUrl('');
         setShowCustomInput(false);
         Toast.success('自定义BASE_URL添加成功！');
@@ -173,65 +195,125 @@ const LogsTable = () => {
     };
 
     const fetchData = async () => {
+        console.log('fetchData 开始执行');
+        console.log('API密钥:', apikey);
+        console.log('BaseURL:', baseUrl);
+        
         if (apikey === '') {
             Toast.warning('请先输入令牌，再进行查询');
             return;
         }
-        // 检查令牌格式
-        if (!/^sk-[a-zA-Z0-9]{48}$/.test(apikey)) {
-            Toast.error('令牌格式非法！');
+        
+        if (!baseUrl || baseUrl.trim() === '') {
+            Toast.error('请先设置API地址');
             return;
         }
+        
+        // 智能令牌格式检测
+        const tokenLength = apikey.length;
+        const tokenPrefix = apikey.substring(0, 10);
+        console.log('令牌长度:', tokenLength, '令牌前缀:', tokenPrefix);
+        
+        // 检测常见的令牌格式
+        const isOpenAIFormat = /^sk-[a-zA-Z0-9]{48,}$/.test(apikey);
+        const isSessionFormat = /^sess-[a-zA-Z0-9_-]{20,}$/.test(apikey);
+        const isCustomFormat = apikey.length >= 20;
+        
+        if (isOpenAIFormat) {
+            console.log('检测到OpenAI格式令牌');
+        } else if (isSessionFormat) {
+            console.log('检测到Session格式令牌');
+        } else if (isCustomFormat) {
+            console.log('检测到自定义格式令牌，长度足够');
+        } else if (tokenLength < 10) {
+            Toast.warning('令牌长度过短，请检查是否完整');
+        } else {
+            console.log('未知令牌格式，但仍会尝试查询');
+        }
+        
+        console.log('开始查询，设置loading状态');
         setLoading(true);
         let newTabData = { ...tabData[activeTabKey], balance: 0, usage: 0, accessdate: 0, logs: [], tokenValid: false };
 
         try {
-
+            console.log('开始查询余额信息');
             if (process.env.REACT_APP_SHOW_BALANCE === "true") {
-                const subscription = await API.get(`${baseUrl}/v1/dashboard/billing/subscription`, {
+                console.log('SHOW_BALANCE=true，开始查询订阅信息');
+                const subscriptionUrl = `${baseUrl}/v1/dashboard/billing/subscription`;
+                console.log('订阅查询URL:', subscriptionUrl);
+                
+                const subscription = await API.get(subscriptionUrl, {
                     headers: { Authorization: `Bearer ${apikey}` },
                 });
+                console.log('订阅查询成功:', subscription.data);
+                
                 const subscriptionData = subscription.data;
                 newTabData.balance = subscriptionData.hard_limit_usd;
                 newTabData.tokenValid = true;
 
+                console.log('开始查询使用情况');
                 let now = new Date();
                 let start = new Date(now.getTime() - 100 * 24 * 3600 * 1000);
                 let start_date = `${start.getFullYear()}-${start.getMonth() + 1}-${start.getDate()}`;
                 let end_date = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-                const res = await API.get(`${baseUrl}/v1/dashboard/billing/usage?start_date=${start_date}&end_date=${end_date}`, {
+                
+                const usageUrl = `${baseUrl}/v1/dashboard/billing/usage?start_date=${start_date}&end_date=${end_date}`;
+                console.log('使用量查询URL:', usageUrl);
+                
+                const res = await API.get(usageUrl, {
                     headers: { Authorization: `Bearer ${apikey}` },
                 });
+                console.log('使用量查询成功:', res.data);
+                
                 const data = res.data;
                 newTabData.usage = data.total_usage / 100;
+            } else {
+                console.log('SHOW_BALANCE=false，跳过余额查询');
             }
         } catch (e) {
-            console.error('Balance fetch error:', e)
-            Toast.error("令牌已用尽");
-            resetData(activeTabKey); // 如果发生错误，重置所有数据为默认值
-            setLoading(false);
+            console.error('Balance fetch error:', e);
+            console.error('错误详情:', e.response?.data);
+            console.error('错误状态:', e.response?.status);
+            Toast.error(`查询余额失败: ${e.response?.data?.error?.message || e.message}`);
+            // 不要立即返回，继续尝试查询日志
         }
         try {
+            console.log('开始查询日志详情');
             if (process.env.REACT_APP_SHOW_DETAIL === "true") {
-                const logRes = await API.get(`${baseUrl}/api/log/token?key=${apikey}`);
+                console.log('SHOW_DETAIL=true，开始查询日志');
+                const logUrl = `${baseUrl}/api/log/token?key=${apikey}`;
+                console.log('日志查询URL:', logUrl);
+                
+                const logRes = await API.get(logUrl);
+                console.log('日志查询响应:', logRes.data);
+                
                 const { success, data: logData } = logRes.data;
                 if (success) {
+                    console.log('日志查询成功，数据长度:', logData?.length);
                     newTabData.logs = logData.reverse();
+                    newTabData.tokenValid = true;  // 如果日志查询成功，说明token有效
                     setActiveKeys(['1', '2']); // 自动展开两个折叠面板
                 } else {
-                    Toast.error('查询调用详情失败，请输入正确的令牌');
+                    console.log('日志查询失败:', logRes.data);
+                    Toast.error('查询调用详情失败，请检查令牌和API地址');
                 }
+            } else {
+                console.log('SHOW_DETAIL=false，跳过日志查询');
             }
         } catch (e) {
-            Toast.error("查询失败，请输入正确的令牌");
-            resetData(activeTabKey); // 如果发生错误，重置所有数据为默认值
-            setLoading(false);
+            console.error('Log fetch error:', e);
+            console.error('错误详情:', e.response?.data);
+            console.error('错误状态:', e.response?.status);
+            Toast.error(`查询日志失败: ${e.response?.data?.message || e.message}`);
         }
+        
+        console.log('查询完成，更新数据');
         setTabData((prevData) => ({
             ...prevData,
             [activeTabKey]: newTabData,
         }));
         setLoading(false);
+        console.log('查询流程结束');
 
     };
 
@@ -511,13 +593,19 @@ const LogsTable = () => {
                             </Button>
                         </div>
                     )}
+                    
+                    <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
+                        <Text type="secondary">
+                            💡 提示: 支持多种令牌格式 (sk-xxx, sess-xxx, 或其他NewAPI令牌格式)
+                        </Text>
+                    </div>
                 </div>
                 
                 <Input
                     showClear
                     value={apikey}
                     onChange={(value) => setAPIKey(value)}
-                    placeholder="请输入要查询的令牌 sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    placeholder="请输入API令牌 (支持sk-xxx、sess-xxx等格式)"
                     prefix={<IconSearch />}
                     suffix={
                         <Button
