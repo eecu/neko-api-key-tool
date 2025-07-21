@@ -114,21 +114,21 @@ const LogsTable = () => {
         setBaseUrl(baseUrls[key]);
     };
 
-    const testConnection = async (testUrl) => {
-        console.log('测试连接:', testUrl);
-        try {
-            // 简单测试连接
-            const response = await fetch(testUrl, {
-                method: 'GET',
-                mode: 'cors',
-            });
-            console.log('连接测试结果:', response.status);
-            return response.ok;
-        } catch (error) {
-            console.error('连接测试失败:', error);
-            return false;
-        }
-    };
+    // const testConnection = async (testUrl) => {
+    //     console.log('测试连接:', testUrl);
+    //     try {
+    //         // 简单测试连接
+    //         const response = await fetch(testUrl, {
+    //             method: 'GET',
+    //             mode: 'cors',
+    //         });
+    //         console.log('连接测试结果:', response.status);
+    //         return response.ok;
+    //     } catch (error) {
+    //         console.error('连接测试失败:', error);
+    //         return false;
+    //     }
+    // };
 
     const addCustomBaseUrl = async () => {
         if (!customBaseUrl.trim()) {
@@ -181,18 +181,18 @@ const LogsTable = () => {
         Toast.success('已删除自定义URL');
     };
 
-    const resetData = (key) => {
-        setTabData((prevData) => ({
-            ...prevData,
-            [key]: {
-                balance: 0,
-                usage: 0,
-                accessdate: "未知",
-                logs: [],
-                tokenValid: false,
-            }
-        }));
-    };
+    // const resetData = (key) => {
+    //     setTabData((prevData) => ({
+    //         ...prevData,
+    //         [key]: {
+    //             balance: 0,
+    //             usage: 0,
+    //             accessdate: "未知",
+    //             logs: [],
+    //             tokenValid: false,
+    //         }
+    //     }));
+    // };
 
     const fetchData = async () => {
         console.log('fetchData 开始执行');
