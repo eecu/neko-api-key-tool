@@ -12,9 +12,11 @@
 ![React](https://img.shields.io/badge/React-18.2.0-61dafb.svg)
 ![Semi Design](https://img.shields.io/badge/Semi_Design-2.59.1-blue.svg)
 
-</div>
+</div>img
 
 ---
+
+![项目预览图](./img.png)
 
 ## 📋 项目简介
 
