@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs } from '@douyinfe/semi-ui';
-import { IconSearch, IconCopy, IconDownload, IconSetting } from '@douyinfe/semi-icons';
+import { Button, Input, Typography, Table, Tag, Spin, Card, Collapse, Toast, Space, Tabs, Banner, Avatar } from '@douyinfe/semi-ui';
+import { IconCopy, IconDownload, IconSetting, IconKey, IconActivity } from '@douyinfe/semi-icons';
+import { useTheme } from '../context/Theme';
 import { API, timestamp2string } from '../helpers';
 import { stringToColor } from '../helpers/render';
 import { ITEMS_PER_PAGE } from '../constants';
@@ -37,6 +38,53 @@ function renderUseTime(type) {
 }
 
 const LogsTable = () => {
+    const theme = useTheme();
+    const isDark = theme === 'dark';
+    
+    // 主题适配的样式函数
+    const getThemeStyles = () => ({
+        bannerBg: isDark 
+            ? 'linear-gradient(135deg, #434343 0%, #2d2d2d 100%)'
+            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        cardHeaderBg: isDark
+            ? 'linear-gradient(90deg, #2a2a2a 0%, #242424 100%)'
+            : 'linear-gradient(90deg, #fafafa 0%, #f5f5f5 100%)',
+        cardShadow: isDark
+            ? '0 2px 8px rgba(0,0,0,0.3)'
+            : '0 2px 8px rgba(0,0,0,0.1)',
+        inputBg: isDark ? '#1a1a1a' : '#f8f9fa',
+        inputBorder: isDark ? '#404040' : '#e9ecef',
+        tipBg: isDark ? '#0d1117' : '#e6f7ff',
+        tipBorder: isDark ? '#30363d' : '#91d5ff',
+        resultHeaderBg: isDark
+            ? 'linear-gradient(90deg, #1a1a1a 0%, #0d1117 100%)'
+            : 'linear-gradient(90deg, #f6ffed 0%, #f0f9ff 100%)',
+        tabActiveBg: isDark
+            ? 'linear-gradient(135deg, #0d1117, #161b22)'
+            : 'linear-gradient(135deg, #e6f7ff, #f0f9ff)',
+        // 令牌信息卡片背景
+        tokenTotalBg: isDark
+            ? 'linear-gradient(135deg, #2d1f00, #3d2800)' 
+            : 'linear-gradient(135deg, #fff7e6, #fffbe6)',
+        tokenTotalBorder: isDark ? '#8b4513' : '#ffd591',
+        tokenRemainBg: isDark
+            ? 'linear-gradient(135deg, #001529, #003a8c)'
+            : 'linear-gradient(135deg, #f6ffed, #f0f9ff)',
+        tokenRemainBorder: isDark ? '#1890ff' : '#91d5ff',
+        tokenUsedBg: isDark
+            ? 'linear-gradient(135deg, #2a0e13, #3d1319)'
+            : 'linear-gradient(135deg, #fff1f0, #fff2e8)',
+        tokenUsedBorder: isDark ? '#a8071a' : '#ffadd2',
+        tokenExpireBg: isDark
+            ? 'linear-gradient(135deg, #1f0a2e, #301934)'
+            : 'linear-gradient(135deg, #f9f0ff, #f6ffed)',
+        tokenExpireBorder: isDark ? '#722ed1' : '#d3adf7',
+        exchangeRateBg: isDark
+            ? 'linear-gradient(135deg, #002329, #003d52)'
+            : 'linear-gradient(135deg, #e6fffb, #f0f9ff)',
+        exchangeRateBorder: isDark ? '#13c2c2' : '#87e8de'
+    });
+    
     // 添加错误边界状态
     const [hasError, setHasError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
@@ -53,13 +101,10 @@ const LogsTable = () => {
     
     // 安全的环境变量初始化
     const getInitialBaseUrls = () => {
-        // 提供一个安全的默认值
-        const defaultUrls = { 'NewAPI示例': 'https://your-newapi-domain.com' };
-        
         try {
             const envUrl = process.env.REACT_APP_BASE_URL;
             if (!envUrl || !envUrl.trim()) {
-                return defaultUrls;
+                return {}; // 返回空对象，不显示示例界面
             }
             
             const trimmedUrl = envUrl.trim();
@@ -82,10 +127,10 @@ const LogsTable = () => {
                 return { 'NewAPI': trimmedUrl };
             }
             
-            return defaultUrls;
+            return {}; // 返回空对象
         } catch (error) {
-            // 任何错误都返回默认值
-            return defaultUrls;
+            // 任何错误都返回空对象
+            return {};
         }
     };
     
@@ -93,8 +138,15 @@ const LogsTable = () => {
 
     useEffect(() => {
         try {
-            // 默认设置第一个地址为baseUrl
+            // 如果没有预设URL，显示自定义输入框
             const keys = Object.keys(baseUrls);
+            if (keys.length === 0) {
+                setShowCustomInput(true);
+                setIsInitializing(false);
+                return;
+            }
+            
+            // 默认设置第一个地址为baseUrl
             if (keys.length > 0) {
                 const firstKey = keys[0];
                 setActiveTabKey(firstKey);
@@ -157,11 +209,16 @@ const LogsTable = () => {
         };
         
         setBaseUrls(newBaseUrls);
-        setActiveTabKey(newKey);
-        setBaseUrl(testUrl);
+        
+        // 自动切换到新添加的URL
+        setTimeout(() => {
+            setActiveTabKey(newKey);
+            setBaseUrl(testUrl);
+        }, 100);
+        
         setCustomBaseUrl('');
         setShowCustomInput(false);
-        Toast.success('自定义BASE_URL添加成功！');
+        Toast.success('自定义BASE_URL添加成功并已自动切换！');
     };
 
     const removeCustomUrl = (key) => {
@@ -557,116 +614,323 @@ const LogsTable = () => {
     };
 
     const activeTabData = tabData[activeTabKey] || { logs: [], balance: 0, usage: 0, accessdate: "未知", tokenValid: false };
+    const themeStyles = getThemeStyles();
 
     const renderContent = () => (
         <>
-            <Card style={{ marginTop: 24 }}>
-                <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <Text strong>当前API地址：</Text>
-                        <Tag color="blue">{baseUrl}</Tag>
+            {/* 顶部欢迎横幅 */}
+            <Banner
+                type='info'
+                description='🚀 NewAPI密钥检测工具 - 快速检测API密钥的有效性、余额和使用历史'
+                style={{ 
+                    marginBottom: 20,
+                    background: themeStyles.bannerBg,
+                    color: 'white',
+                    border: 'none'
+                }}
+                icon={<IconKey style={{ color: 'white' }} />}
+            />
+
+            {/* API配置卡片 */}
+            <Card 
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <IconSetting style={{ color: isDark ? '#69c0ff' : '#1890ff' }} />
+                        <span style={{ color: isDark ? '#ffffff' : undefined }}>API配置</span>
+                    </div>
+                }
+                headerStyle={{ 
+                    borderBottom: `2px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+                    background: themeStyles.cardHeaderBg
+                }}
+                style={{ 
+                    marginBottom: 24,
+                    boxShadow: themeStyles.cardShadow,
+                    borderRadius: '8px'
+                }}
+            >
+                <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <Avatar 
+                            size="small" 
+                            style={{ backgroundColor: isDark ? '#52c41a' : '#52c41a' }}
+                        >
+                            🌐
+                        </Avatar>
+                        <Text strong style={{ fontSize: '14px' }}>当前API地址：</Text>
+                        <Tag 
+                            color="blue" 
+                            size="large"
+                            style={{ 
+                                background: isDark 
+                                    ? 'linear-gradient(135deg, #1668dc, #1890ff)' 
+                                    : 'linear-gradient(135deg, #1890ff, #36cfc9)',
+                                border: 'none',
+                                color: 'white'
+                            }}
+                        >
+                            {baseUrl || '未设置'}
+                        </Tag>
                         <Button 
                             icon={<IconSetting />} 
-                            theme="borderless" 
+                            theme="light" 
+                            type="primary"
                             onClick={() => setShowCustomInput(!showCustomInput)}
+                            style={{ borderRadius: '6px' }}
                         >
-                            自定义
+                            {showCustomInput ? '隐藏配置' : '自定义地址'}
                         </Button>
                     </div>
                     
                     {showCustomInput && (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <div style={{ 
+                            display: 'flex', 
+                            gap: 12, 
+                            marginTop: 16,
+                            padding: '16px',
+                            background: themeStyles.inputBg,
+                            borderRadius: '8px',
+                            border: `1px solid ${themeStyles.inputBorder}`
+                        }}>
                             <Input
-                                placeholder="输入自定义BASE_URL，例如：https://api.example.com"
+                                placeholder="🔗 输入自定义BASE_URL，例如：https://api.example.com"
                                 value={customBaseUrl}
                                 onChange={setCustomBaseUrl}
-                                style={{ flex: 1 }}
+                                style={{ 
+                                    flex: 1,
+                                    borderRadius: '6px'
+                                }}
+                                prefix={<span style={{ color: isDark ? '#69c0ff' : '#1890ff' }}>🌐</span>}
                             />
-                            <Button type="primary" onClick={addCustomBaseUrl}>
-                                添加
+                            <Button 
+                                type="primary" 
+                                onClick={addCustomBaseUrl}
+                                style={{ 
+                                    borderRadius: '6px',
+                                    background: isDark 
+                                        ? 'linear-gradient(135deg, #389e0d, #52c41a)'
+                                        : 'linear-gradient(135deg, #52c41a, #73d13d)'
+                                }}
+                            >
+                                ✅ 添加
                             </Button>
-                            <Button onClick={() => {
-                                setShowCustomInput(false);
-                                setCustomBaseUrl('');
-                            }}>
-                                取消
+                            <Button 
+                                onClick={() => {
+                                    setShowCustomInput(false);
+                                    setCustomBaseUrl('');
+                                }}
+                                style={{ borderRadius: '6px' }}
+                            >
+                                ❌ 取消
                             </Button>
                         </div>
                     )}
                     
-                    <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
-                        <Text type="secondary">
-                            💡 提示: 支持多种令牌格式 (sk-xxx, sess-xxx, 或其他NewAPI令牌格式)
+                    <div style={{ 
+                        marginTop: 12, 
+                        padding: '8px 12px', 
+                        background: themeStyles.tipBg, 
+                        borderRadius: '6px',
+                        border: `1px solid ${themeStyles.tipBorder}`
+                    }}>
+                        <Text type="secondary" style={{ fontSize: '13px' }}>
+                            💡 <strong>支持格式：</strong> sk-xxx (OpenAI)、sess-xxx (ChatGPT)、或其他NewAPI兼容令牌
                         </Text>
                     </div>
                 </div>
                 
-                <Input
-                    showClear
-                    value={apikey}
-                    onChange={(value) => setAPIKey(value)}
-                    placeholder="请输入API令牌 (支持sk-xxx、sess-xxx等格式)"
-                    prefix={<IconSearch />}
-                    suffix={
-                        <Button
-                            type='primary'
-                            theme="solid"
-                            onClick={fetchData}
-                            loading={loading}
-                            disabled={apikey === ''}
-                        >
-                            查询
-                        </Button>
-                    }
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            fetchData();
+                <div style={{ position: 'relative' }}>
+                    <Input
+                        size="large"
+                        showClear
+                        value={apikey}
+                        onChange={(value) => setAPIKey(value)}
+                        placeholder="🔑 请输入API令牌进行检测..."
+                        prefix={<IconKey style={{ color: isDark ? '#69c0ff' : '#1890ff' }} />}
+                        suffix={
+                            <Button
+                                type='primary'
+                                theme="solid"
+                                onClick={fetchData}
+                                loading={loading}
+                                disabled={apikey === ''}
+                                style={{ 
+                                    borderRadius: '6px',
+                                    background: loading ? undefined : (isDark 
+                                        ? 'linear-gradient(135deg, #1668dc, #1890ff)'
+                                        : 'linear-gradient(135deg, #1890ff, #36cfc9)'),
+                                    minWidth: '80px'
+                                }}
+                            >
+                                {loading ? '检测中...' : '🔍 检测'}
+                            </Button>
                         }
-                    }}
-                />
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                fetchData();
+                            }
+                        }}
+                        style={{ 
+                            borderRadius: '8px',
+                            fontSize: '14px'
+                        }}
+                    />
+                </div>
             </Card>
-            <Card style={{ marginTop: 24 }}>
-                <Collapse activeKey={activeKeys} onChange={(keys) => setActiveKeys(keys)}>
+            {/* 检测结果卡片 */}
+            <Card 
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <IconActivity style={{ color: isDark ? '#73d13d' : '#52c41a' }} />
+                        <span style={{ color: isDark ? '#ffffff' : undefined }}>检测结果</span>
+                    </div>
+                }
+                headerStyle={{ 
+                    borderBottom: `2px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+                    background: themeStyles.resultHeaderBg
+                }}
+                style={{ 
+                    boxShadow: themeStyles.cardShadow,
+                    borderRadius: '8px'
+                }}
+            >
+                <Collapse 
+                    activeKey={activeKeys} 
+                    onChange={(keys) => setActiveKeys(keys)}
+                    style={{ background: 'transparent' }}
+                >
                     {process.env.REACT_APP_SHOW_BALANCE === "true" && (
                         <Panel
-                            header="令牌信息"
+                            header={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontSize: '16px', color: '#faad14' }}>💰</span>
+                                    <span style={{ fontWeight: 600 }}>令牌信息</span>
+                                </div>
+                            }
                             itemKey="1"
                             extra={
-                                <Button icon={<IconCopy />} theme='borderless' type='primary' onClick={(e) => copyTokenInfo(e)} disabled={!activeTabData.tokenValid}>
-                                    复制令牌信息
+                                <Button 
+                                    icon={<IconCopy />} 
+                                    theme='light' 
+                                    type='primary' 
+                                    onClick={(e) => copyTokenInfo(e)} 
+                                    disabled={!activeTabData.tokenValid}
+                                    style={{ borderRadius: '6px' }}
+                                >
+                                    📋 复制信息
                                 </Button>
                             }
                         >
                             <Spin spinning={loading}>
-                                <div style={{ marginBottom: 16 }}>
-                                    <Text type="secondary">
-                                        令牌总额：{activeTabData.balance === 100000000 ? "无限" : activeTabData.balance === "未知" || activeTabData.balance === undefined ? "未知" : `${activeTabData.balance.toFixed(3)}`}
-                                    </Text>
-                                    <br /><br />
-                                    <Text type="secondary">
-                                        剩余额度：{activeTabData.balance === 100000000 ? "无限制" : activeTabData.balance === "未知" || activeTabData.usage === "未知" || activeTabData.balance === undefined || activeTabData.usage === undefined ? "未知" : `${(activeTabData.balance - activeTabData.usage).toFixed(3)}`}
-                                    </Text>
-                                    <br /><br />
-                                    <Text type="secondary">
-                                        已用额度：{activeTabData.balance === 100000000 ? "不进行计算" : activeTabData.usage === "未知" || activeTabData.usage === undefined ? "未知" : `${activeTabData.usage.toFixed(3)}`}
-                                    </Text>
-                                    <br /><br />
-                                    <Text type="secondary">
-                                        有效期至：{activeTabData.accessdate === 0 ? '永不过期' : activeTabData.accessdate === "未知" ? '未知' : renderTimestamp(activeTabData.accessdate)}
-                                    </Text>
+                                <div style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                                    gap: '16px',
+                                    padding: '16px 0'
+                                }}>
+                                    <div style={{ 
+                                        padding: '16px', 
+                                        background: themeStyles.tokenTotalBg,
+                                        borderRadius: '8px',
+                                        border: `1px solid ${themeStyles.tokenTotalBorder}`
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                            <span style={{ fontSize: '20px' }}>💳</span>
+                                            <Text strong>令牌总额</Text>
+                                        </div>
+                                        <Text style={{ fontSize: '18px', color: isDark ? '#ffc53d' : '#fa8c16' }}>
+                                            {activeTabData.balance === 100000000 ? "♾️ 无限" : 
+                                             activeTabData.balance === "未知" || activeTabData.balance === undefined ? "❓ 未知" : 
+                                             `$${activeTabData.balance.toFixed(3)}`}
+                                        </Text>
+                                    </div>
+                                    
+                                    <div style={{ 
+                                        padding: '16px', 
+                                        background: themeStyles.tokenRemainBg,
+                                        borderRadius: '8px',
+                                        border: `1px solid ${themeStyles.tokenRemainBorder}`
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                            <span style={{ fontSize: '20px' }}>💎</span>
+                                            <Text strong>剩余额度</Text>
+                                        </div>
+                                        <Text style={{ fontSize: '18px', color: isDark ? '#69c0ff' : '#1890ff' }}>
+                                            {activeTabData.balance === 100000000 ? "♾️ 无限制" : 
+                                             activeTabData.balance === "未知" || activeTabData.usage === "未知" || 
+                                             activeTabData.balance === undefined || activeTabData.usage === undefined ? "❓ 未知" : 
+                                             `$${(activeTabData.balance - activeTabData.usage).toFixed(3)}`}
+                                        </Text>
+                                    </div>
+                                    
+                                    <div style={{ 
+                                        padding: '16px', 
+                                        background: themeStyles.tokenUsedBg,
+                                        borderRadius: '8px',
+                                        border: `1px solid ${themeStyles.tokenUsedBorder}`
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                            <span style={{ fontSize: '20px' }}>📊</span>
+                                            <Text strong>已用额度</Text>
+                                        </div>
+                                        <Text style={{ fontSize: '18px', color: isDark ? '#ff7875' : '#f5222d' }}>
+                                            {activeTabData.balance === 100000000 ? "🚫 不计算" : 
+                                             activeTabData.usage === "未知" || activeTabData.usage === undefined ? "❓ 未知" : 
+                                             `$${activeTabData.usage.toFixed(3)}`}
+                                        </Text>
+                                    </div>
+                                    
+                                    <div style={{ 
+                                        padding: '16px', 
+                                        background: themeStyles.tokenExpireBg,
+                                        borderRadius: '8px',
+                                        border: `1px solid ${themeStyles.tokenExpireBorder}`
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                            <span style={{ fontSize: '20px' }}>⏰</span>
+                                            <Text strong>有效期至</Text>
+                                        </div>
+                                        <Text style={{ fontSize: '14px', color: isDark ? '#b37feb' : '#722ed1' }}>
+                                            {activeTabData.accessdate === 0 ? '♾️ 永不过期' : 
+                                             activeTabData.accessdate === "未知" ? '❓ 未知' : 
+                                             renderTimestamp(activeTabData.accessdate)}
+                                        </Text>
+                                    </div>
                                 </div>
                             </Spin>
                         </Panel>
                     )}
                     {process.env.REACT_APP_SHOW_DETAIL === "true" && (
                         <Panel
-                            header="调用详情"
+                            header={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <IconActivity style={{ color: '#13c2c2' }} />
+                                    <span style={{ fontWeight: 600 }}>📈 调用详情</span>
+                                </div>
+                            }
                             itemKey="2"
                             extra={
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <Tag shape='circle' color='green' style={{ marginRight: 5 }}>计算汇率：$1 = 50 0000 tokens</Tag>
-                                    <Button icon={<IconDownload />} theme='borderless' type='primary' onClick={(e) => exportCSV(e)} disabled={!activeTabData.tokenValid || activeTabData.logs.length === 0}>
-                                        导出为CSV文件
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Tag 
+                                        shape='circle' 
+                                        color='cyan' 
+                                        style={{ 
+                                            background: themeStyles.exchangeRateBg,
+                                            border: `1px solid ${themeStyles.exchangeRateBorder}`,
+                                            color: isDark ? '#5cdbd3' : '#13c2c2'
+                                        }}
+                                    >
+                                        💱 汇率：$1 = 500000 tokens
+                                    </Tag>
+                                    <Button 
+                                        icon={<IconDownload />} 
+                                        theme='light' 
+                                        type='primary' 
+                                        onClick={(e) => exportCSV(e)} 
+                                        disabled={!activeTabData.tokenValid || activeTabData.logs.length === 0}
+                                        style={{ borderRadius: '6px' }}
+                                    >
+                                        📥 导出CSV
                                     </Button>
                                 </div>
                             }
@@ -681,10 +945,14 @@ const LogsTable = () => {
                                         showSizeChanger: true,
                                         pageSizeOpts: [10, 20, 50, 100],
                                         onPageSizeChange: (pageSize) => setPageSize(pageSize),
-                                        showTotal: (total) => `共 ${total} 条`,
+                                        showTotal: (total) => `📊 共 ${total} 条记录`,
                                         showQuickJumper: true,
                                         total: activeTabData.logs.length,
                                         style: { marginTop: 12 },
+                                    }}
+                                    style={{ 
+                                        borderRadius: '8px',
+                                        overflow: 'hidden'
                                     }}
                                 />
                             </Spin>
@@ -697,12 +965,35 @@ const LogsTable = () => {
 
     // 初始化加载状态
     if (isInitializing) {
+        const themeStyles = getThemeStyles();
         return (
-            <Card style={{ marginTop: 24 }}>
-                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                    <Spin size="large" />
+            <Card style={{ 
+                marginTop: 24,
+                background: isDark 
+                    ? 'linear-gradient(135deg, #0d1117 0%, #161b22 100%)'
+                    : 'linear-gradient(135deg, #f0f9ff 0%, #f6ffed 100%)',
+                border: `1px solid ${isDark ? '#30363d' : '#91d5ff'}`,
+                borderRadius: '12px',
+                boxShadow: themeStyles.cardShadow
+            }}>
+                <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <div style={{ marginBottom: 24 }}>
+                        <span style={{ fontSize: '48px' }}>🚀</span>
+                    </div>
+                    <Spin size="large" style={{ marginBottom: 16 }} />
                     <div style={{ marginTop: 16 }}>
-                        <Text type="secondary">正在初始化应用...</Text>
+                        <Text style={{ 
+                            fontSize: '16px', 
+                            color: isDark ? '#69c0ff' : '#1890ff', 
+                            fontWeight: 500 
+                        }}>
+                            正在初始化 NewAPI 密钥检测工具...
+                        </Text>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                        <Text type="secondary" style={{ fontSize: '14px' }}>
+                            请稍候，正在为您准备最佳的检测体验
+                        </Text>
                     </div>
                 </div>
             </Card>
@@ -743,9 +1034,32 @@ const LogsTable = () => {
                     <Tabs type="line" onChange={handleTabChange} activeKey={activeTabKey}>
                         {Object.entries(baseUrls).map(([key, url]) => {
                             const isCustom = key.startsWith('Custom_');
+                            let displayName;
+                            if (isCustom) {
+                                try {
+                                    displayName = `🔧 ${new URL(url).hostname}`;
+                                } catch (e) {
+                                    displayName = `🔧 自定义`;
+                                }
+                            } else {
+                                displayName = `🌐 ${key}`;
+                            }
                             const tabTitle = (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span>{isCustom ? '自定义' : key}</span>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 6,
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    background: key === activeTabKey ? themeStyles.tabActiveBg : 'transparent'
+                                }}>
+                                    <span style={{ 
+                                        fontSize: '13px',
+                                        fontWeight: key === activeTabKey ? 600 : 400,
+                                        color: key === activeTabKey ? (isDark ? '#69c0ff' : '#1890ff') : undefined
+                                    }}>
+                                        {displayName}
+                                    </span>
                                     {isCustom && (
                                         <Button 
                                             type="danger" 
@@ -755,9 +1069,15 @@ const LogsTable = () => {
                                                 e.stopPropagation();
                                                 removeCustomUrl(key);
                                             }}
-                                            style={{ fontSize: '12px', padding: '2px 4px' }}
+                                            style={{ 
+                                                fontSize: '12px', 
+                                                padding: '2px 4px',
+                                                minWidth: '16px',
+                                                height: '16px',
+                                                borderRadius: '50%'
+                                            }}
                                         >
-                                            ×
+                                            ❌
                                         </Button>
                                     )}
                                 </div>

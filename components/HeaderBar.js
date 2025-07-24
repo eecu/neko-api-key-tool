@@ -51,7 +51,7 @@ const HeaderBar = () => {
               <IconGithubLogo
                 size="large"
                 style={{ cursor: 'pointer', marginRight: '10px', color: 'var(--semi-color-text-2)' }}
-                onClick={() => window.open('https://github.com/Calcium-Ion/neko-api-key-tool', '_blank')}
+                onClick={() => window.open('https://github.com/eecu/neko-api-key-tool-b', '_blank')}
               />
             )}
           </>
